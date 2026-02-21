@@ -19,7 +19,7 @@
 **Requirements**: REQ-01, REQ-02
 
 ### Phase 2: Pauli Translation and Taylor Expansion
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Expand the discrete Hamiltonian into the Pauli basis, and implement a purely mathematical (classical) truncation of the $e^{-iHt}$ Taylor series to obtain classical variables representing a large list of coefficients $\alpha_j$ and individual Pauli strings $U_j$.
 **Requirements**: REQ-03, REQ-04
 
