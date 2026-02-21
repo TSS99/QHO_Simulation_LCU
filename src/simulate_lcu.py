@@ -14,7 +14,7 @@ from src.pauli_decomposition import decompose_hamiltonian_to_paulis
 from src.taylor_expansion import compute_time_evolution_taylor
 from src.lcu_circuits import build_prepare_circuit, build_select_circuit
 
-def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float, K: int, threshold: float=1e-10, time_steps: int=1):
+def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float, K: int, threshold: float=1e-10, time_steps: int=1, num_amplification_steps: int=0):
     """
     Orchestrates the full LCU simulation for the 1D QHO time evolution.
     
@@ -65,19 +65,40 @@ def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float
     qc_select = build_select_circuit(paulis, complex_phases)
     qc_unprepare = qc_prepare.inverse()
     
-    # 6. Compose full single step circuit
+    # 6. Compose the LCU logical block (W) and robust Reflection Operator (S_0)
     ancilla = QuantumRegister(n_a, 'ancilla')
     target = QuantumRegister(n_t, 'target')
+    
+    W_qc = QuantumCircuit(ancilla, target, name="W")
+    W_qc.append(qc_prepare, ancilla)
+    W_qc.append(qc_select, list(ancilla) + list(target))
+    W_qc.append(qc_unprepare, ancilla)
+    
+    # S_0 is the reflection about |0..0> on the ancilla register (I - 2|0><0|)
+    S_0_qc = QuantumCircuit(ancilla, name="S_0")
+    S_0_qc.x(ancilla)
+    if n_a == 1:
+        S_0_qc.z(0)
+    else:
+        from qiskit.circuit.library import ZGate
+        mcz = ZGate().control(n_a - 1)
+        # Apply Multi-controlled Z
+        S_0_qc.append(mcz, list(range(n_a)))
+    S_0_qc.x(ancilla)
+
     step_qc = QuantumCircuit(ancilla, target, name="LCU_Step")
     
-    # Apply PREPARE on ancilla
-    step_qc.append(qc_prepare, ancilla)
+    # Start sequence with W
+    step_qc.append(W_qc, list(ancilla) + list(target))
     
-    # Apply SELECT
-    step_qc.append(qc_select, list(ancilla) + list(target))
-    
-    # Apply PREPARE_dagger on ancilla
-    step_qc.append(qc_unprepare, ancilla)
+    # Oblivious Amplitude Amplification Grover loop: G = - W S_0 W^dagger S_0
+    for _ in range(num_amplification_steps):
+        step_qc.append(S_0_qc, ancilla)
+        step_qc.append(W_qc.inverse(), list(ancilla) + list(target))
+        step_qc.append(S_0_qc, ancilla)
+        step_qc.append(W_qc, list(ancilla) + list(target))
+        # Global phase -1 for the Grover Iterator standard form
+        step_qc.global_phase += np.pi
     
     # Initialize the target state
     current_target_state = np.zeros(2**n_t, dtype=complex)
