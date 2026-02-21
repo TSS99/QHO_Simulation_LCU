@@ -5,15 +5,15 @@ from src.simulate_lcu import run_lcu_simulation
 # ==========================================
 # --- Simulation Input Parameters ---
 # ==========================================
-q = 2                 # Number of qubits for the target space (N = 2^q)
+q = 3                 # Number of qubits for the target space (N = 2^q)
 mass = 1.0            # Particle mass
 omega = 1.0           # Oscillator angular frequency
 max_x = 2.0           # Spatial bounds (-max_x to max_x)
 t = 0.5               # Time of evolution
 time_steps = 10       # Number of segments to divide the time evolution into
-K = 3                 # Taylor series truncation order per step
-threshold = 1e-10     # Precision cutoff
-num_amplification_steps = 10 # Steps of Oblivious Amplitude Amplification (OAA)
+K = 2                 # Taylor series truncation order per step
+threshold = 1e-5      # Sparse Pauli projection cutoff (aggressively drops complexity on high Q)
+num_amplification_steps = 2  # Drastically reduced from 10 since the `Hamiltonian Identity Shift` optimization implicitly lowers the L1 norm constraint on projections!
 
 # Optional: Manually define the initial state vector of length 2^q (None defaults to |0...0>)
 # Example of a uniform superposition: np.ones(2**q)

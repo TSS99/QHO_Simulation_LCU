@@ -42,11 +42,30 @@ def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float
     # 2. Decompose into Paulis
     H_pauli = decompose_hamiltonian_to_paulis(H_matrix, threshold)
     
+    # --- Hamiltonian Shift Optimization ---
+    # Isolate and remove the massive Identity term to dramatically reduce the L1 norm
+    # This exponentially reduces Taylor expansion term branching and bounds circuit depth.
+    identity_label = 'I' * q
+    paulis_list = []
+    coeffs_list = []
+    for p, c in zip(H_pauli.paulis, H_pauli.coeffs):
+        if p.to_label() == identity_label:
+            pass # Strip the identity out to shift the Hamiltonian
+        else:
+            paulis_list.append(p.to_label())
+            coeffs_list.append(c)
+            
+    from qiskit.quantum_info import SparsePauliOp
+    if len(paulis_list) > 0:
+        H_pauli_shifted = SparsePauliOp.from_list(list(zip(paulis_list, coeffs_list)))
+    else:
+        H_pauli_shifted = SparsePauliOp.from_list([(identity_label, 0.0)])
+    
     # Time segment
     dt = t / time_steps
     
-    # 3. Compute Taylor expansion for Delta t
-    U_taylor_pauli = compute_time_evolution_taylor(H_pauli, dt, K, threshold)
+    # 3. Compute Taylor expansion for Delta t using the Shifted Hamiltonian
+    U_taylor_pauli = compute_time_evolution_taylor(H_pauli_shifted, dt, K, threshold)
     
     # Extract coefficients and paulis
     complex_coeffs = U_taylor_pauli.coeffs
