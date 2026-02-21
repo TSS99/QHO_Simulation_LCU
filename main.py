@@ -14,6 +14,10 @@ time_steps = 10       # Number of segments to divide the time evolution into
 K = 3                 # Taylor series truncation order per step
 threshold = 1e-10     # Precision cutoff
 num_amplification_steps = 10 # Steps of Oblivious Amplitude Amplification (OAA)
+
+# Optional: Manually define the initial state vector of length 2^q (None defaults to |0...0>)
+# Example of a uniform superposition: np.ones(2**q)
+custom_initial_state = None
 # ==========================================
 
 def run():
@@ -23,14 +27,19 @@ def run():
     print(f"Parameters:\n - Qubits (q): {q}\n - Mass: {mass}\n - Omega: {omega}\n - Max X: {max_x}\n - Time (t): {t}\n - Segments (time_steps): {time_steps}\n - Taylor Order (K): {K}\n - OAA Steps: {num_amplification_steps}\n")
     
     # Run the orchestrator
-    res = run_lcu_simulation(q=q, mass=mass, omega=omega, max_x=max_x, t=t, K=K, threshold=threshold, time_steps=time_steps, num_amplification_steps=num_amplification_steps)
+    res = run_lcu_simulation(q=q, mass=mass, omega=omega, max_x=max_x, t=t, K=K, threshold=threshold, time_steps=time_steps, num_amplification_steps=num_amplification_steps, initial_state=custom_initial_state)
     
     print(f"Success probability of state projection: {res['success_prob']:.4f}")
     
-    # Exact unitary comparison for the standard initial ground-ish state |0>
-    exact_state = res['exact_unitary'] @ np.zeros(2**q)
-    exact_state[0] = 1.0
-    exact_state = res['exact_unitary'] @ exact_state
+    # Exact unitary comparison based on the selected initial state
+    if custom_initial_state is not None:
+        init_vec = np.array(custom_initial_state, dtype=complex)
+        init_vec = init_vec / np.linalg.norm(init_vec)
+    else:
+        init_vec = np.zeros(2**q, dtype=complex)
+        init_vec[0] = 1.0
+        
+    exact_state = res['exact_unitary'] @ init_vec
     
     # Show output vectors
     print("\nSimulated Target Statevector:")

@@ -14,7 +14,7 @@ from src.pauli_decomposition import decompose_hamiltonian_to_paulis
 from src.taylor_expansion import compute_time_evolution_taylor
 from src.lcu_circuits import build_prepare_circuit, build_select_circuit
 
-def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float, K: int, threshold: float=1e-10, time_steps: int=1, num_amplification_steps: int=0):
+def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float, K: int, threshold: float=1e-10, time_steps: int=1, num_amplification_steps: int=0, initial_state: np.ndarray = None):
     """
     Orchestrates the full LCU simulation for the 1D QHO time evolution.
     
@@ -101,8 +101,14 @@ def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float
         step_qc.global_phase += np.pi
     
     # Initialize the target state
-    current_target_state = np.zeros(2**n_t, dtype=complex)
-    current_target_state[0] = 1.0  # Ground-ish computational start
+    if initial_state is not None:
+        if len(initial_state) != 2**n_t:
+            raise ValueError(f"initial_state length must be {2**n_t} for q={n_t}")
+        norm = np.linalg.norm(initial_state)
+        current_target_state = np.array(initial_state, dtype=complex) / norm
+    else:
+        current_target_state = np.zeros(2**n_t, dtype=complex)
+        current_target_state[0] = 1.0  # Ground-ish computational start
     
     total_success_prob = 1.0
     target_dim = 2**n_t
