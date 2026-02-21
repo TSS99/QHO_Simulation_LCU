@@ -11,7 +11,10 @@ def build_prepare_circuit(coefficients: np.ndarray) -> QuantumCircuit:
         
     N_padded = 2**n_a
     padded_coeffs = np.zeros(N_padded)
-    padded_coeffs[:M] = coefficients
+    for j in range(M):
+        # Map indices to Gray code ordering to optimize sequential activation in SELECT
+        g_j = j ^ (j >> 1)
+        padded_coeffs[g_j] = coefficients[j]
     
     l1_norm = np.sum(np.abs(padded_coeffs))
     
@@ -38,12 +41,21 @@ def build_select_circuit(paulis: list[str], complex_phases: list[complex]) -> Qu
     target = QuantumRegister(n_t, 'target')
     qc = QuantumCircuit(ancilla, target, name="SELECT")
 
+    # Initialize X-gates natively to logic 0 -> flip all for |0..0>
+    current_g = 0
+    qc.x(ancilla)
+
     for j, (pauli_str, phase) in enumerate(zip(paulis, complex_phases)):
-        binary_j = format(j, f'0{n_a}b')
-        anti_controls = [ancilla[n_a - 1 - i] for i, bit in enumerate(binary_j) if bit == '0']
+        # Calculate Gray code progression
+        g_j = j ^ (j >> 1)
+        diff = current_g ^ g_j
+        current_g = g_j
         
-        if anti_controls:
-            qc.x(anti_controls)
+        # Apply X only to the bit that changed state 
+        # (reduces O(M*n_a) X-gates to O(M))
+        changed_indices = [i for i in range(n_a) if (diff & (1 << i))]
+        if changed_indices:
+            qc.x([ancilla[i] for i in changed_indices])
         
         angle = np.angle(phase)
         if abs(angle) > 1e-10:
@@ -75,7 +87,9 @@ def build_select_circuit(paulis: list[str], complex_phases: list[complex]) -> Qu
                 mcz = ZGate().control(n_a)
                 qc.append(mcz, controls + [tgt])
 
-        if anti_controls:
-            qc.x(anti_controls)
+    # Revert final X-configuration back to pure basis
+    final_anti = [ancilla[i] for i in range(n_a) if not (current_g & (1 << i))]
+    if final_anti:
+        qc.x(final_anti)
             
     return qc
