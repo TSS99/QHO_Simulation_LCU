@@ -17,7 +17,10 @@ num_amplification_steps = 10 # Steps of Oblivious Amplitude Amplification (OAA)
 
 # Optional: Manually define the initial state vector of length 2^q (None defaults to |0...0>)
 # Example of a uniform superposition: np.ones(2**q)
-custom_initial_state = None
+# Evaluate a Gaussian distribution representing the theoretical ground state of the QHO!
+x_grid_init = np.linspace(-max_x, max_x, 2**q)
+custom_initial_state = np.exp(- (mass * omega * x_grid_init**2) / 2.0)
+custom_initial_state = custom_initial_state / np.linalg.norm(custom_initial_state)
 # ==========================================
 
 def run():
