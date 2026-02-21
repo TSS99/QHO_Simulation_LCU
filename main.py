@@ -5,9 +5,9 @@ from src.simulate_lcu import run_lcu_simulation
 # ==========================================
 # --- Simulation Input Parameters ---
 # ==========================================
-q = 3                 # Number of qubits for the target space (N = 2^q)
+q = 4                 # Number of qubits for the target space (N = 2^q)
 mass = 1.0            # Particle mass
-omega = 1.0           # Oscillator angular frequency
+omega = 5.0           # Oscillator angular frequency
 max_x = 2.0           # Spatial bounds (-max_x to max_x)
 t = 0.5               # Time of evolution
 time_steps = 10       # Number of segments to divide the time evolution into
@@ -17,9 +17,10 @@ num_amplification_steps = 2  # Drastically reduced from 10 since the `Hamiltonia
 
 # Optional: Manually define the initial state vector of length 2^q (None defaults to |0...0>)
 # Example of a uniform superposition: np.ones(2**q)
-# Evaluate a Gaussian distribution representing the theoretical ground state of the QHO!
+# Evaluate a shifted Gaussian distribution so we can actually see the particle oscillate in the potential well!
+# We shift the starting wavepacket by initializing it at x = -0.75
 x_grid_init = np.linspace(-max_x, max_x, 2**q)
-custom_initial_state = np.exp(- (mass * omega * x_grid_init**2) / 2.0)
+custom_initial_state = np.exp(- (mass * omega * (x_grid_init + 0.75)**2) / 2.0)
 custom_initial_state = custom_initial_state / np.linalg.norm(custom_initial_state)
 # ==========================================
 
