@@ -2,8 +2,6 @@
 
 This repository is an end-to-end framework to simulate real-time evolution of a particle in a 1D harmonic potential using a Linear Combination of Unitaries (LCU) construction in Qiskit.
 
-Math in this README is written using GitHub’s native LaTeX support. Inline math uses `$...$` and display math uses `$$...$$`.
-
 ---
 
 ## Table of Contents
