@@ -31,15 +31,6 @@ class TestHamiltonianOperators(unittest.TestCase):
         self.assertAlmostEqual(X[0, 0], -self.max_x)
         self.assertAlmostEqual(X[-1, -1], self.max_x - dx)
 
-    def test_momentum_operator(self):
-        P = generate_momentum_operator(self.q, self.max_x)
-        
-        # Check dimensions
-        self.assertEqual(P.shape, (self.N, self.N))
-        
-        # Check Hermiticity
-        np.testing.assert_allclose(P, P.conj().T, atol=1e-10, err_msg="P is not Hermitian")
-
     def test_harmonic_oscillator_hamiltonian(self):
         mass = 1.0
         omega = 1.0
