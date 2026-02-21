@@ -24,7 +24,7 @@
 **Requirements**: REQ-03, REQ-04
 
 ### Phase 3: LCU Qiskit Implementation (Ancilla + Multiplexing)
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Build a Qiskit quantum circuit that accepts the $\alpha_j$ and $U_j$ lists from Phase 2. Implement the PREPARE block (mapping $\alpha_j$ to ancilla amplitudes) and the SELECT block (multiplexing target Pauli unitaries conditioned on the ancilla register).
 **Requirements**: REQ-05
 
