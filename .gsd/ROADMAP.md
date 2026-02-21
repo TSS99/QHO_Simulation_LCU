@@ -14,7 +14,7 @@
 ## Phases
 
 ### Phase 1: Environment and Discretization
-**Status**: ⬜ Not Started
+**Status**: ✅ Complete
 **Objective**: Set up a local Python virtual environment, pull Qiskit/Numpy, and build robust functions that discretize the 1D Harmonic Oscillator (position and momentum spaces) and return the resulting Hamiltonian matrix for $N=2^q$.
 **Requirements**: REQ-01, REQ-02
 
