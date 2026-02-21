@@ -25,10 +25,6 @@ Thumbs.db
 *.swp
 *.swo
 
-# Project Output
-*.png
-lcu_circuit_diagram.png
-*.pdf
 
 # Jupyter Notebooks (if later used)
 .ipynb_checkpoints/
@@ -43,3 +39,4 @@ scripts/
 GSD-STYLE.md
 PROJECT_RULES.md
 setup_env.sh
+model_capabilities.yaml
