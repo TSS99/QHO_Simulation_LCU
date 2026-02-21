@@ -69,9 +69,36 @@ def run():
     fig.savefig(filepath, dpi=300, bbox_inches='tight')
     print(f"Saved block circuit to '{filepath}'.")
     
-    # Display the circuit interactively if running in a windowed environment
+    # ----------------------------------------------------
+    # Plotting Probability Distribution
+    # ----------------------------------------------------
+    print("\nGenerating and saving probability distribution plot...")
+    
+    # Calculate probability distributions |psi|^2
+    simulated_prob = np.abs(res['normalized_state'])**2
+    exact_prob = np.abs(exact_state)**2
+    
+    # Define spatial grid
+    N = 2**q
+    x_grid = np.linspace(-max_x, max_x, N)
+    
+    fig_plot, ax = plt.subplots(figsize=(8, 5))
+    ax.plot(x_grid, exact_prob, 'r-', linewidth=2, label='Exact Distribution', marker='o')
+    ax.plot(x_grid, simulated_prob, 'b--', linewidth=2, label='Simulated (LCU) Distribution', marker='x')
+    
+    ax.set_title(rf'1D Quantum Harmonic Oscillator ($q={q}$ qubits)' + '\n' + r'Probability Distribution $|\psi|^2$ at $t=$' + str(t))
+    ax.set_xlabel('Position ($x$)')
+    ax.set_ylabel(r'Probability $|\psi|^2$')
+    ax.legend(loc='upper right')
+    ax.grid(True, linestyle='--', alpha=0.7)
+    
+    plot_filepath = 'probability_distribution.png'
+    fig_plot.savefig(plot_filepath, dpi=300, bbox_inches='tight')
+    print(f"Saved probability distribution plot to '{plot_filepath}'.")
+    
+    # Display the plots interactively if running in a windowed environment
     try:
-        print("Attempting to display the circuit window. Close the window to exit the script.")
+        print("Attempting to display the visualization windows. Close them to exit the script.")
         plt.show()
     except Exception as e:
         print("Could not display the interactive visualization window.")

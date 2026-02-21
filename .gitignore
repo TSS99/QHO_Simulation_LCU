@@ -25,6 +25,11 @@ Thumbs.db
 *.swp
 *.swo
 
+# Project Output
+*.png
+*.pdf
+lcu_circuit_diagram.png
+probability_distribution.png
 
 # Jupyter Notebooks (if later used)
 .ipynb_checkpoints/
