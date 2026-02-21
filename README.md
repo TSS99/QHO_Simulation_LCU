@@ -157,17 +157,13 @@ The standard LCU construction uses three blocks.
 **PREPARE.** Prepare the ancilla superposition weighted by $|\alpha_j|$:
 
 $$
-V|0\rangle^{\otimes n_a}
-=
-\sum_{j=0}^{M-1}\sqrt{\frac{|\alpha_j|}{\lambda}}\,|j\rangle.
+V|0\rangle^{\otimes n_a} = \sum_{j=0}^{M-1}\sqrt{\frac{|\alpha_j|}{\lambda}}\,|j\rangle.
 $$
 
 **SELECT.** Apply the correct unitary controlled on the ancilla index:
 
 $$
-\mathrm{SELECT}
-=
-\sum_{j=0}^{M-1} |j\rangle\langle j| \otimes U_j.
+\mathrm{SELECT} = \sum_{j=0}^{M-1} |j\rangle\langle j| \otimes U_j.
 $$
 
 Any complex phase in $\alpha_j$ is implemented as a phase factor inside $U_j$.
