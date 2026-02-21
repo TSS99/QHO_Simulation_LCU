@@ -192,7 +192,7 @@ Implementation notes:
    The finite-difference kinetic operator is banded. Exploiting sparsity helps control term growth and circuit depth.
 
 2. Time slicing  
-   Instead of approximating $e^{-iHt}$ for the full $t$ at once, use slices $dt = t/\text{time\_steps}$ and compose the evolution across slices.
+   Instead of approximating $e^{-iHt}$ for the full $t$ at once, use slices $dt = t/\text{time_steps}$ and compose the evolution across slices.
 
 3. Identity shifting  
    If $H$ contains an identity component $c_I I$, shift it out:
