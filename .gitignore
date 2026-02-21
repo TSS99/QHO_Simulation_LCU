@@ -32,3 +32,14 @@ lcu_circuit_diagram.png
 
 # Jupyter Notebooks (if later used)
 .ipynb_checkpoints/
+
+# GSD / AI Agents / Tracking Artifacts
+.agent/
+.gemini/
+.gsd/
+adapters/
+docs/
+scripts/
+GSD-STYLE.md
+PROJECT_RULES.md
+setup_env.sh

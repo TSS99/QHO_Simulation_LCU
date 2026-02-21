@@ -10,10 +10,10 @@ mass = 1.0            # Particle mass
 omega = 1.0           # Oscillator angular frequency
 max_x = 2.0           # Spatial bounds (-max_x to max_x)
 t = 0.5               # Time of evolution
-time_steps = 5        # Number of segments to divide the time evolution into
+time_steps = 10       # Number of segments to divide the time evolution into
 K = 3                 # Taylor series truncation order per step
 threshold = 1e-10     # Precision cutoff
-num_amplification_steps = 1 # Steps of Oblivious Amplitude Amplification (OAA)
+num_amplification_steps = 10 # Steps of Oblivious Amplitude Amplification (OAA)
 # ==========================================
 
 def run():
