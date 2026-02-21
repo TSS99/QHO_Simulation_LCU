@@ -1,46 +1,47 @@
 # Simulating the 1D Quantum Harmonic Oscillator using LCU (Qiskit)
 
-This repository is an end-to-end framework to simulate real-time evolution of a particle in a 1D harmonic potential using a Linear Combination of Unitaries (LCU) construction in Qiskit.
+This repository simulates real-time evolution of a particle in a 1D harmonic potential using a Linear Combination of Unitaries (LCU) construction in Qiskit.
+
 
 ---
 
 ## Table of Contents
 
-1. [Introduction](#introduction)  
-2. [Physics. The 1D Quantum Harmonic Oscillator](#physics-the-1d-quantum-harmonic-oscillator)  
-3. [Discretization and Hamiltonian Construction](#discretization-and-hamiltonian-construction)  
-4. [Mathematics. Linear Combination of Unitaries (LCU)](#mathematics-linear-combination-of-unitaries-lcu)  
-5. [Algorithmic Optimizations](#algorithmic-optimizations)  
-6. [Repository Structure](#repository-structure)  
-7. [Installation and Setup](#installation-and-setup)  
-8. [How to Run](#how-to-run)  
-9. [Outputs and Validation](#outputs-and-validation)  
+1. [Introduction](#introduction)
+2. [Physics. The 1D Quantum Harmonic Oscillator](#physics-the-1d-quantum-harmonic-oscillator)
+3. [Discretization and Hamiltonian Construction](#discretization-and-hamiltonian-construction)
+4. [Mathematics. Linear Combination of Unitaries (LCU)](#mathematics-linear-combination-of-unitaries-lcu)
+5. [Algorithmic Optimizations](#algorithmic-optimizations)
+6. [Repository Structure](#repository-structure)
+7. [Installation and Setup](#installation-and-setup)
+8. [How to Run](#how-to-run)
+9. [Outputs and Validation](#outputs-and-validation)
 
 ---
 
 ## Introduction
 
-Quantum dynamics is governed by Schrödinger time evolution. For a time-independent Hamiltonian $H$, the state evolves as:
+For a time-independent Hamiltonian $H$, Schrödinger time evolution is:
 
 $$
-\lvert \psi(t)\rangle = e^{-iHt}\,\lvert \psi(0)\rangle.
+|\psi(t)\rangle = e^{-iHt}\,|\psi(0)\rangle.
 $$
 
-On a classical computer, evaluating $e^{-iHt}$ becomes expensive as the Hilbert space dimension grows. This project builds a quantum circuit that approximates $e^{-iHt}$ using an LCU construction derived from a truncated Taylor series, so the evolution can be executed on a quantum processor (or simulated via Qiskit backends).
+Directly computing $e^{-iHt}$ is expensive on classical hardware as the dimension grows. This project builds a quantum-circuit approximation of $e^{-iHt}$ using an LCU construction derived from a truncated Taylor series.
 
 ---
 
 ## Physics. The 1D Quantum Harmonic Oscillator
 
-The 1D quantum harmonic oscillator (QHO) Hamiltonian is:
+The 1D quantum harmonic oscillator Hamiltonian is:
 
 $$
 H = \frac{p^2}{2m} + \frac{1}{2}m\omega^2 x^2.
 $$
 
-- $m$ is the particle mass.
-- $\omega$ is the oscillator frequency.
-- $x$ and $p$ are the position and momentum operators.
+- $m$ is the particle mass
+- $\omega$ is the oscillator frequency
+- $x$ and $p$ are the position and momentum operators
 
 ---
 
@@ -48,11 +49,11 @@ $$
 
 ### Spatial grid
 
-We choose bounds $[-x_{\max}, x_{\max}]$ and discretize into $N = 2^q$ points, where $q$ is the number of target qubits and $N$ is the Hilbert-space dimension of the discretized position basis.
+We choose bounds $[-x_{\max}, x_{\max}]$ and discretize into $N = 2^q$ points, where $q$ is the number of target qubits. The discretized position basis has dimension $N$.
 
-Let the grid spacing be $\Delta x$ and grid points be $x_j$ for $j = 0,1,\dots,N-1$.
+Let the grid spacing be $\Delta x$ and grid points be $x_j$ for $j=0,1,\dots,N-1$.
 
-### Potential energy operator
+### Potential energy
 
 The potential is diagonal in the position basis:
 
@@ -62,151 +63,156 @@ V(x) = \frac{1}{2}m\omega^2 x^2,
 V_{jj} = \frac{1}{2}m\omega^2 x_j^2.
 $$
 
-### Kinetic energy operator (finite difference)
+### Kinetic energy (finite difference Laplacian)
 
-Using the standard second-order central finite difference for the second derivative:
+Using the standard second-order central finite difference:
 
 $$
-\frac{d^2 \psi}{dx^2}(x_j) \approx
-\frac{\psi(x_{j+1}) - 2\psi(x_j) + \psi(x_{j-1})}{\Delta x^2},
+\frac{d^2\psi}{dx^2}(x_j) \approx \frac{\psi(x_{j+1}) - 2\psi(x_j) + \psi(x_{j-1})}{\Delta x^2},
 $$
 
-the kinetic operator (with $\hbar = 1$ by default unless you keep it explicit) becomes a sparse banded matrix:
+the kinetic operator (with $\hbar=1$ unless kept explicit) is:
 
 $$
 T = -\frac{1}{2m}\frac{d^2}{dx^2}.
 $$
 
-So the full discretized Hamiltonian is:
+So the discretized Hamiltonian is:
 
 $$
 H = T + V.
 $$
 
-Implementation detail:
-- `src/hamiltonian.py` generates $T$, $V$, and $H$ from $(q, x_{\max}, m, \omega)$.
+Implementation note:
+- `src/hamiltonian.py` builds $T$, $V$, and $H$.
 
 ### Initial state
 
-A convenient starting point is a displaced Gaussian wavepacket, close to the ground state shape but shifted by $x_0$:
+A convenient starting point is a displaced Gaussian wavepacket:
 
 $$
 \psi(x) \propto \exp\!\left(-\frac{\alpha}{2}(x-x_0)^2\right).
 $$
 
-This produces clear bounded oscillations in position-space probability under time evolution.
+This produces a clean oscillation in the position-space probability distribution under time evolution.
 
 ---
 
 ## Mathematics. Linear Combination of Unitaries (LCU)
 
-We want to implement (or approximate) $U(t) = e^{-iHt}$.
+We want to approximate the evolution operator:
+
+$$
+U(t) = e^{-iHt}.
+$$
 
 ### Step 1. Pauli decomposition
 
-On $q$ qubits, any $N \times N$ operator can be expanded in the Pauli basis:
+On $q$ qubits, we expand the discretized Hamiltonian in the Pauli basis:
 
 $$
 H = \sum_{\ell} c_{\ell} P_{\ell},
 \qquad
-P_{\ell} \in \{I,X,Y,Z\}^{\otimes q}.
+P_{\ell} \in \{I, X, Y, Z\}^{\otimes q}.
 $$
 
-Implementation detail:
-- `src/pauli_decomposition.py` produces a list of $(c_{\ell}, P_{\ell})$ terms.
+Implementation note:
+- `src/pauli_decomposition.py` produces the list of $(c_{\ell}, P_{\ell})$ terms.
 
 ### Step 2. Truncated Taylor series
 
-We approximate the exponential using a Taylor expansion truncated at order $K$:
+We use a Taylor expansion truncated at order $K$:
 
 $$
 e^{-iHt} \approx \sum_{k=0}^{K}\frac{(-it)^k}{k!}H^k.
 $$
 
-After expanding the products $H^k$ (symbolically as products of Pauli strings, or numerically with controlled truncation rules), the approximation can be expressed as an LCU form:
+After expanding products and collecting terms, we rewrite the approximation as an LCU:
 
 $$
 e^{-iHt} \approx \sum_{j=0}^{M-1}\alpha_j U_j,
 $$
 
-where each $U_j$ is unitary (typically a Pauli string up to a phase) and $\alpha_j$ are complex coefficients.
+where each $U_j$ is unitary (often a Pauli string up to a phase) and $\alpha_j$ are complex coefficients.
 
-Implementation detail:
-- `src/taylor_expansion.py` constructs the truncated series and returns the $(\alpha_j, U_j)$ list.
+Implementation note:
+- `src/taylor_expansion.py` constructs the truncated expansion and returns $(\alpha_j, U_j)$.
 
-### Step 3. LCU circuit structure
+### Step 3. The LCU circuit
 
-Let $M$ be the number of unitaries in the final list, and let $n_a = \lceil \log_2 M \rceil$ be the number of ancilla qubits needed to index them.
-
-Define:
+Let $M$ be the number of terms and let the ancilla size be:
 
 $$
-\lambda = \sum_{j=0}^{M-1} \lvert \alpha_j \rvert.
+n_a = \left\lceil \log_2 M \right\rceil.
 $$
 
-The standard LCU pattern uses three blocks.
-
-1) PREPARE. Create an ancilla superposition weighted by $\lvert \alpha_j \rvert$:
+Define the 1-norm weight:
 
 $$
-V\lvert 0\rangle^{\otimes n_a}
+\lambda = \sum_{j=0}^{M-1} |\alpha_j|.
+$$
+
+The standard LCU construction uses three blocks.
+
+**PREPARE.** Prepare the ancilla superposition weighted by $|\alpha_j|$:
+
+$$
+V|0\rangle^{\otimes n_a}
 =
-\sum_{j=0}^{M-1}\sqrt{\frac{\lvert \alpha_j \rvert}{\lambda}}\,\lvert j\rangle.
+\sum_{j=0}^{M-1}\sqrt{\frac{|\alpha_j|}{\lambda}}\,|j\rangle.
 $$
 
-2) SELECT. Apply the right unitary controlled on the ancilla state:
+**SELECT.** Apply the correct unitary controlled on the ancilla index:
 
 $$
-\operatorname{SELECT}
+\mathrm{SELECT}
 =
-\sum_{j=0}^{M-1}\lvert j\rangle\langle j\rvert \otimes U_j.
+\sum_{j=0}^{M-1} |j\rangle\langle j| \otimes U_j.
 $$
 
-(Any complex phase in $\alpha_j$ is implemented inside $U_j$ as a phase factor.)
+Any complex phase in $\alpha_j$ is implemented as a phase factor inside $U_j$.
 
-3) Uncompute. Apply $V^\dagger$ to return ancillas to $\lvert 0\rangle^{\otimes n_a}$ when the post-selection succeeds.
+**UNCOMPUTE.** Apply $V^\dagger$ to uncompute the ancilla.
 
-Overall block:
+The full block is:
 
 $$
-W = (V^\dagger \otimes I)\,\operatorname{SELECT}\,(V \otimes I).
+W = (V^\dagger \otimes I)\,\mathrm{SELECT}\,(V \otimes I).
 $$
 
 ### Post-selection
 
-Measuring ancillas as $\lvert 0\rangle^{\otimes n_a}$ projects the target register onto a state proportional to the desired approximation. The success probability is related to $\lambda$ and the norm of the target-state component, so it can decrease as $t$ grows or as $K$ changes.
+Measuring the ancilla in the state $|0\rangle^{\otimes n_a}$ projects the target register onto the desired approximation (up to normalization). The success probability can decrease as $t$ increases or as the truncation parameters change.
 
-Implementation detail:
-- `src/lcu_circuits.py` builds PREPARE and SELECT.
-- `src/simulate_lcu.py` orchestrates the full routine and measurement post-processing.
+Implementation notes:
+- `src/lcu_circuits.py` builds PREPARE and SELECT
+- `src/simulate_lcu.py` orchestrates the full workflow
 
 ---
 
 ## Algorithmic Optimizations
 
-This project is structured to keep circuit depth and term growth under control.
+1. Sparse finite-difference structure  
+   The finite-difference kinetic operator is banded. Exploiting sparsity helps control term growth and circuit depth.
 
-1. Sparse finite-difference Hamiltonian  
-   The central finite-difference kinetic operator produces a banded (sparse) matrix. Sparsity is exploited during decomposition and truncation so the term list does not blow up as quickly as it would for dense constructions.
-
-2. Time slicing (segmented evolution)  
-   Instead of approximating $e^{-iHt}$ for a large $t$ directly, the simulation uses steps of size $dt = t/\text{time\_steps}$ and composes the evolution across slices. This helps keep the Taylor truncation stable and reduces per-slice circuit depth.
+2. Time slicing  
+   Instead of approximating $e^{-iHt}$ for the full $t$ at once, use slices $dt = t/\text{time\_steps}$ and compose the evolution across slices.
 
 3. Identity shifting  
-   If the decomposition includes an identity component $c_I I$, you can shift it out:
+   If $H$ contains an identity component $c_I I$, shift it out:
    $H' = H - c_I I$.
    Then:
    $e^{-iHt} = e^{-ic_I t}\,e^{-iH't}$.
-   The global phase factor $e^{-ic_I t}$ is physically irrelevant for probabilities, and removing it can reduce unnecessary bookkeeping.
+   The global phase $e^{-ic_I t}$ does not affect measurement probabilities.
 
-4. Gray-code ordering for SELECT  
-   Ordering the index states in Gray-code order reduces the number of basis-state bit flips needed when implementing multiplexed controls, which can reduce depth in practical SELECT constructions.
+4. Gray-code ordering for SELECT (optional)  
+   Gray-code ordering reduces control-state bit flips in practical SELECT constructions.
 
 5. Oblivious amplitude amplification (optional)  
-   To boost post-selection success, the code supports an OAA loop around $W$. One common form is:
+   To amplify post-selection success, wrap the LCU block with an OAA iterator such as:
 
 $$
-\mathcal{Q} = -W\,S_0\,W^\dagger\,S_0,
+\mathcal{Q} = -W S_0 W^\dagger S_0,
 $$
 
 where $S_0$ reflects about the ancilla-all-zero subspace.
@@ -216,12 +222,12 @@ where $S_0$ reflects about the ancilla-all-zero subspace.
 ## Repository Structure
 
 ```text
-├── main.py                    # Entry point. Configuration and execution
-├── requirements.txt           # Dependencies (Qiskit, NumPy, etc.)
+├── main.py
+├── requirements.txt
 ├── src/
-│   ├── hamiltonian.py         # Finite-difference QHO Hamiltonian builder
-│   ├── pauli_decomposition.py # Pauli basis expansion utilities
-│   ├── taylor_expansion.py    # Truncated Taylor expansion logic
-│   ├── lcu_circuits.py        # PREPARE/SELECT construction (incl. Gray-code helpers)
-│   └── simulate_lcu.py        # High-level LCU simulation orchestration
-└── tests/                     # Unit tests for operators and circuit sanity checks
+│   ├── hamiltonian.py
+│   ├── pauli_decomposition.py
+│   ├── taylor_expansion.py
+│   ├── lcu_circuits.py
+│   └── simulate_lcu.py
+└── tests/
