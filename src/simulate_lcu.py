@@ -14,7 +14,7 @@ from src.pauli_decomposition import decompose_hamiltonian_to_paulis
 from src.taylor_expansion import compute_time_evolution_taylor
 from src.lcu_circuits import build_prepare_circuit, build_select_circuit
 
-def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float, K: int, threshold: float=1e-10):
+def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float, K: int, threshold: float=1e-10, time_steps: int=1):
     """
     Orchestrates the full LCU simulation for the 1D QHO time evolution.
     
@@ -24,8 +24,9 @@ def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float
         omega: Oscillator angular frequency.
         max_x: Spatial bounds (-max_x to max_x).
         t: Time of evolution.
-        K: Taylor series truncation order.
+        K: Taylor series truncation order per time step.
         threshold: Precision cutoff.
+        time_steps: Number of trotters/slices to segment the full time `t` into. This prevents Taylor expansion blow-ups and scales easily to high qubits.
         
     Returns:
         dict containing:
@@ -41,8 +42,11 @@ def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float
     # 2. Decompose into Paulis
     H_pauli = decompose_hamiltonian_to_paulis(H_matrix, threshold)
     
-    # 3. Compute Taylor expansion
-    U_taylor_pauli = compute_time_evolution_taylor(H_pauli, t, K, threshold)
+    # Time segment
+    dt = t / time_steps
+    
+    # 3. Compute Taylor expansion for Delta t
+    U_taylor_pauli = compute_time_evolution_taylor(H_pauli, dt, K, threshold)
     
     # Extract coefficients and paulis
     complex_coeffs = U_taylor_pauli.coeffs
@@ -61,75 +65,70 @@ def run_lcu_simulation(q: int, mass: float, omega: float, max_x: float, t: float
     qc_select = build_select_circuit(paulis, complex_phases)
     qc_unprepare = qc_prepare.inverse()
     
-    # 6. Compose full circuit
+    # 6. Compose full single step circuit
     ancilla = QuantumRegister(n_a, 'ancilla')
     target = QuantumRegister(n_t, 'target')
-    full_qc = QuantumCircuit(ancilla, target, name="LCU_Full")
+    step_qc = QuantumCircuit(ancilla, target, name="LCU_Step")
     
-    # Target initially |0> state; apply PREPARE on ancilla
-    full_qc.append(qc_prepare, ancilla)
+    # Apply PREPARE on ancilla
+    step_qc.append(qc_prepare, ancilla)
     
     # Apply SELECT
-    full_qc.append(qc_select, list(ancilla) + list(target))
+    step_qc.append(qc_select, list(ancilla) + list(target))
     
     # Apply PREPARE_dagger on ancilla
-    full_qc.append(qc_unprepare, ancilla)
+    step_qc.append(qc_unprepare, ancilla)
     
-    # 7. Post-selection simulation
-    sv = Statevector(full_qc).data
+    # Initialize the target state
+    current_target_state = np.zeros(2**n_t, dtype=complex)
+    current_target_state[0] = 1.0  # Ground-ish computational start
     
-    # Qiskit registers: target is qubits [n_a, n_a + 1, ...], ancilla is [0, 1, ..., n_a - 1].
-    # So the state integer is composed of target bits and ancilla bits.
-    # Success means ancilla is |0>...|0>, which corresponds to indices where the lowest n_a bits are exactly 0.
+    total_success_prob = 1.0
     target_dim = 2**n_t
     ancilla_dim = 2**n_a
     
-    # Pre-allocate success state
-    success_state = np.zeros(target_dim, dtype=complex)
-    
-    # The computational basis states are |target>|ancilla>
-    # success is when |ancilla> = |0>.
-    # So index = target_idx * (2**n_a) + 0
-    for target_idx in range(target_dim):
-        sv_idx = target_idx * ancilla_dim
-        success_state[target_idx] = sv[sv_idx]
+    # Iterate across time steps, feeding the post-selected statevector back in
+    for step in range(time_steps):
+        # We tensor the target state with the |0> ancilla state. 
+        # In Qiskit's little-endian ordering, the ancilla are the least significant bits (qubits 0 to n_a-1)
+        # So we want |target> (X) |0...0_ancilla>.
+        # We manually construct this to initialize the Statevector correctly.
+        full_state_init = np.zeros(target_dim * ancilla_dim, dtype=complex)
+        for target_idx in range(target_dim):
+            # The indices corresponding to ancilla = |0>
+            sv_idx = target_idx * ancilla_dim
+            full_state_init[sv_idx] = current_target_state[target_idx]
+            
+        sv = Statevector(full_state_init)
         
-    p_success_val = np.sum(np.abs(success_state)**2)
-    
-    # Factor from the LCU protocol calculation
-    # ||alpha||_1 norm scales the unitaries. If sum(alpha) != 1, success probability scales by 1/||alpha||_1^2
-    # In time evolution by Taylor series, ||alpha||_1 can be roughly e^(||H|| t), 
-    # making exact calculation of success_prob mathematically necessary from amplitude weights
-    # Note: State is unnormalized here.
-    
-    if p_success_val > 1e-15:
-        normalized_target_state = success_state / np.sqrt(p_success_val)
-    else:
-        normalized_target_state = success_state
-        p_success_val = 0.0
+        # Evolve the statevector using the LCU timestep block
+        sv_out = sv.evolve(step_qc).data
+        
+        # Post-selection: extract indices where ancilla is |0>
+        success_state = np.zeros(target_dim, dtype=complex)
+        for target_idx in range(target_dim):
+            sv_idx = target_idx * ancilla_dim
+            success_state[target_idx] = sv_out[sv_idx]
+            
+        p_success_val = np.sum(np.abs(success_state)**2)
+        total_success_prob *= p_success_val
+        
+        if p_success_val > 1e-15:
+            current_target_state = success_state / np.sqrt(p_success_val)
+        else:
+            current_target_state = success_state
+            total_success_prob = 0.0
+            break
         
     import scipy.linalg
     exact_unitary = scipy.linalg.expm(-1j * t * H_matrix)
     
     return {
-        'circuit': full_qc,
-        'success_prob': p_success_val,
-        'normalized_state': normalized_target_state,
+        'circuit': step_qc,
+        'success_prob': total_success_prob,
+        'normalized_state': current_target_state,
         'exact_unitary': exact_unitary,
         'H_matrix': H_matrix
     }
 
-if __name__ == '__main__':
-    # A quick sandbox execution
-    print("Running Sandbox LCU...")
-    res = run_lcu_simulation(q=2, mass=1.0, omega=1.0, max_x=2.0, t=0.5, K=5)
-    print(f"Success probability: {res['success_prob']:.4f}")
-    
-    exact_state = res['exact_unitary'] @ np.zeros(4)
-    exact_state[0] = 1.0 # applying to |0>
-    exact_state = res['exact_unitary'] @ exact_state
-    
-    print("\nSimulated State (target):")
-    print(np.round(res['normalized_state'], 4))
-    print("\nExact Target State    :")
-    print(np.round(exact_state, 4))
+
