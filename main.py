@@ -89,20 +89,34 @@ def run():
     # Calculate probability distributions |psi|^2
     simulated_prob = np.abs(res['normalized_state'])**2
     exact_prob = np.abs(exact_state)**2
+    init_prob = np.abs(init_vec)**2
     
     # Define spatial grid
     N = 2**q
     x_grid = np.linspace(-max_x, max_x, N)
     
-    fig_plot, ax = plt.subplots(figsize=(8, 5))
-    ax.plot(x_grid, exact_prob, 'r-', linewidth=2, label='Exact Distribution', marker='o')
-    ax.plot(x_grid, simulated_prob, 'b--', linewidth=2, label='Simulated (LCU) Distribution', marker='x')
+    fig_plot, (ax_init, ax_final) = plt.subplots(1, 2, figsize=(14, 5))
     
-    ax.set_title(rf'1D Quantum Harmonic Oscillator ($q={q}$ qubits)' + '\n' + r'Probability Distribution $|\psi|^2$ at $t=$' + str(t))
-    ax.set_xlabel('Position ($x$)')
-    ax.set_ylabel(r'Probability $|\psi|^2$')
-    ax.legend(loc='upper right')
-    ax.grid(True, linestyle='--', alpha=0.7)
+    # Initial State Subplot
+    ax_init.plot(x_grid, init_prob, 'g-', linewidth=2, label='Initial Distribution', marker='D')
+    ax_init.set_title(r'Initial State at $t=0$')
+    ax_init.set_xlabel('Position ($x$)')
+    ax_init.set_ylabel(r'Probability $|\psi|^2$')
+    ax_init.legend(loc='upper right')
+    ax_init.grid(True, linestyle='--', alpha=0.7)
+    
+    # Final State Subplot
+    ax_final.plot(x_grid, exact_prob, 'r-', linewidth=2, label='Exact Final', marker='o')
+    ax_final.plot(x_grid, simulated_prob, 'b--', linewidth=2, label='Simulated (LCU) Final', marker='x')
+    
+    ax_final.set_title(r'Final State at $t=$' + str(t))
+    ax_final.set_xlabel('Position ($x$)')
+    ax_final.set_ylabel(r'Probability $|\psi|^2$')
+    ax_final.legend(loc='upper right')
+    ax_final.grid(True, linestyle='--', alpha=0.7)
+    
+    fig_plot.suptitle(rf'1D Quantum Harmonic Oscillator ($q={q}$ qubits)', fontsize=14)
+    plt.tight_layout()
     
     plot_filepath = 'probability_distribution.png'
     fig_plot.savefig(plot_filepath, dpi=300, bbox_inches='tight')
