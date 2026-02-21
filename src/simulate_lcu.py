@@ -1,5 +1,11 @@
 import numpy as np
 import math
+import sys
+import os
+
+# Ensure the root directory of the project is in the Python path
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
 from qiskit import QuantumCircuit, QuantumRegister
 from qiskit.quantum_info import Statevector
 
